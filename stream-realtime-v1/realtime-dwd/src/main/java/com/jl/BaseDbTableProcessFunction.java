@@ -75,7 +75,6 @@ public class BaseDbTableProcessFunction extends BroadcastProcessFunction<JSONObj
 
         //根据表名先到广播状态中获取对应的配置信息，如果没有找到对应的配置，再尝试到configMap中获取
         TableProcessDwd tableProcessDim = null;
-
 //                for (Map.Entry<String, TableProcessDwd> entry : state.immutableEntries()) {
 //                    String key1 = entry.getKey();
 //                    TableProcessDwd value1 = entry.getValue();
@@ -98,8 +97,6 @@ public class BaseDbTableProcessFunction extends BroadcastProcessFunction<JSONObj
 
             out.collect(Tuple2.of(dataJsonObj, tableProcessDim));
         }
-
-
     }
 
     @Override
@@ -128,6 +125,9 @@ public class BaseDbTableProcessFunction extends BroadcastProcessFunction<JSONObj
             configMap.put(key,tp);
         }
     }
+
+
+
     private static String getKey(String sourceTable, String sourceType) {
         String key = sourceTable + ":" + sourceType;
         return key;
