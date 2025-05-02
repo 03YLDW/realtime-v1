@@ -10,7 +10,7 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
  * @Package com.jl.DwdTradeOrderRefund
  * @Author jia.le
  * @Date 2025/4/22 9:47
- * @description: 1
+ * @description: 退单事实表
  */
 public class DwdTradeOrderRefund {
     public static void main(String[] args) {

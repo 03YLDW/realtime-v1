@@ -36,7 +36,7 @@ import java.sql.ResultSetMetaData;
 import java.util.*;
 
 /**
- * @Package com.jl.realtime_ods.ods.Flink_to_kfk
+ * @Package com.jl.App.DimApp
  * @Author jia.le
  * @Date 2025/4/8 16:02
  * @description: 1
@@ -72,8 +72,8 @@ public class DimApp {
 //        env.setStateBackend(new HashMapStateBackend());
 //        //不让检查点存储在内存中，另外设置检查点的存储位置
 //        env.getCheckpointConfig().setCheckpointStorage("hdfs://cdh01:8020/ck");
-//        //2.7 设置操作hadoop的用户
-//        System.setProperty("HADOOP_USER_NAME","root");
+        //2.7 设置操作hadoop的用户
+        System.setProperty("HADOOP_USER_NAME","root");
         //todo 3. 从Kafka的topic_db 主题中读取业务数据
         //3.1 声明消费的主题以及消费者组
         String topic="topic_db";
