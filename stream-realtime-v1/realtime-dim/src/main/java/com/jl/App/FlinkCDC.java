@@ -1,32 +1,22 @@
 package com.jl.App;
 
-import com.alibaba.fastjson.JSONObject;
-import com.alibaba.fastjson.JSON;
 
+import com.alibaba.fastjson.JSON;
 import com.jl.util.KafkaUtil;
-import com.jl.util.MyKafkaUtil;
 import com.ververica.cdc.connectors.mysql.source.MySqlSource;
 import com.ververica.cdc.connectors.mysql.table.StartupOptions;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
-import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.util.Collector;
-import com.jl.util.KafkaUtils;
-
 import java.util.Properties;
 
 
 
 public class FlinkCDC {
-
+    //MySQL-->|CDC 捕获|Flink-->|JSON 格式过滤|Kafka
     public static void main(String[] args) throws Exception {
         // 1. 创建 Flink 执行环境
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -46,7 +36,7 @@ public class FlinkCDC {
                 .password("root")     // MySQL 密码
                 .debeziumProperties(properties)
                 .deserializer(new JsonDebeziumDeserializationSchema()) // 将CDC数据转为JSON字符串
-                .startupOptions(StartupOptions.earliest())  // 从初始快照开始
+                .startupOptions(StartupOptions.earliest())  // 从初始快照开始，全量拿取
                 .build();
 
 
@@ -59,13 +49,14 @@ public class FlinkCDC {
                 "MySQL CDC Source");
 
         // 5. 打印到控制台用于调试
-//        mysqlCDCStream.print();
+        //mysqlCDCStream.print();
 
         SingleOutputStreamOperator<String> dbObj = mysqlCDCStream.filter(new FilterFunction<String>() {
             @Override
             public boolean filter(String s) throws Exception {
+                 //
                 boolean b = JSON.isValid(s);
-                if (b == false) {
+                if (!b) {
                     return false;
                 }
                 if (JSON.parseObject(s).getString("after") == null) {
@@ -73,7 +64,8 @@ public class FlinkCDC {
                 }
                 return true;
             }
-        });
+        }).uid("filter_1")
+                .name("filter_FlinkCDC");
 
         dbObj.print("------------------------------");
 // 6. 配置Kafka Sink
