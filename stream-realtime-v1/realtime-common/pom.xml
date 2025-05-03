@@ -7,9 +7,16 @@
         <groupId>com.jl</groupId>
         <artifactId>stream-realtime-v1</artifactId>
         <version>1.0-SNAPSHOT</version>
-    </parent>
+</parent>
 
     <artifactId>realtime-common</artifactId>
+
+
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
 
     <repositories>
         <repository>
@@ -62,9 +69,6 @@
             <artifactId>jedis</artifactId>
             <version>3.6.3</version>
         </dependency>
-
-
-
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
@@ -101,6 +105,8 @@
             <version>4.0.3</version>
         </dependency>
 
+
+
         <!--        打包时不进行打包-->
         <dependency>
             <groupId>org.apache.hbase</groupId>
@@ -109,11 +115,24 @@
             <scope>provided</scope>
         </dependency>
 
+        <!--        ik分词器-->
+
+        <!--        <dependency>-->
+        <!--            <groupId>org.wltea.analyzer</groupId>-->
+        <!--            <artifactId>ik-analyzer</artifactId>-->
+        <!--            <version>8.1.0</version>-->
+        <!--        </dependency>-->
         <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <version>8.0.33</version>
+            <groupId>com.janeluo</groupId>
+            <artifactId>ikanalyzer</artifactId>
+            <version>2012_u6</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+        </dependency>
+
 
         <dependency>
             <groupId>org.apache.hadoop</groupId>
@@ -122,43 +141,37 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.ververica</groupId>
-            <artifactId>flink-connector-mysql-cdc</artifactId>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-table-api-java-bridge</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.jl</groupId>
-            <artifactId>realtime-common</artifactId>
-            <version>1.0-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>com.jl</groupId>
-            <artifactId>stream-realtime-v1</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-sql-connector-hive-2.3.9_2.12</artifactId>
+            <version>1.17.1</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.doris</groupId>
             <artifactId>flink-doris-connector-1.17</artifactId>
-            <version>1.5.2</version>
+            <version>1.5.0</version>
             <scope>compile</scope>
         </dependency>
-
     </dependencies>
-
     <profiles>
-        <profile>
-            <id>dev</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <properties>
-                <program.scope>compile</program.scope>
-            </properties>
-            <build>
-                <filters>
-                    <filter>src/main/resources/filter/common-config.properties.dev</filter>
-                </filters>
-            </build>
-        </profile>
+<!--        <profile>-->
+<!--            <id>dev</id>-->
+<!--            <activation>-->
+<!--                <activeByDefault>true</activeByDefault>-->
+<!--            </activation>-->
+<!--            <properties>-->
+<!--                <program.scope>compile</program.scope>-->
+<!--            </properties>-->
+<!--            <build>-->
+<!--                <filters>-->
+<!--                    <filter>src/main/resources/filter/common-config.properties.dev</filter>-->
+<!--                </filters>-->
+<!--            </build>-->
+<!--        </profile>-->
 
         <profile>
             <id>stage</id>
@@ -218,9 +231,9 @@
                     <execution>
                         <id>make-assembly</id>
                         <phase>package</phase>
-                        <goals>
-                            <goal>assembly</goal>
-                        </goals>
+                        <!--                        <goals>-->
+                        <!--                            <goal>assembly</goal>-->
+                        <!--                        </goals>-->
                     </execution>
                 </executions>
             </plugin>
@@ -245,4 +258,6 @@
             </resource>
         </resources>
     </build>
+
+
 </project>
