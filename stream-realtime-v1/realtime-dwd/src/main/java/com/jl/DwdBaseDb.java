@@ -55,6 +55,7 @@ public class DwdBaseDb {
             @Override
             public boolean filter(JSONObject jsonObject) throws Exception {
                 String string = jsonObject.getJSONObject("source").getString("table");
+                //dwd配置表中共有 favor_info coupon_use coupon_use   user_info  四张表   这里是筛选每张表来进行
                 if ("user_info".equals(string)) {
                     return true;
                 }
