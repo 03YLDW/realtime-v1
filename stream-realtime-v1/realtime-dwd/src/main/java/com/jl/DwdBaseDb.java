@@ -37,7 +37,7 @@ public class DwdBaseDb {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         // 并行度，
         env.setParallelism(4);
-//3.2     创建消费者对象
+        //3.2创建消费者对象
         DataStreamSource<String> dbStrDS = KafkaUtil.getKafkaSource(env, "topic_db", "group03");
 
         SingleOutputStreamOperator<JSONObject> dbObjDS1 = dbStrDS.process(new ProcessFunction<String, JSONObject>() {
@@ -62,7 +62,7 @@ public class DwdBaseDb {
             }
         });
 
-        //读取配置表信息
+        //读取 dwd 配置表信息
         Properties properties = new Properties();
         properties.setProperty("decimal.handling.mode","double");
         properties.setProperty("time.precision.mode","connect");
