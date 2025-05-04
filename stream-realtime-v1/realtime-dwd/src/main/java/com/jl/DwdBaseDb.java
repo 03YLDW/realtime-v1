@@ -67,6 +67,7 @@ public class DwdBaseDb {
         Properties properties = new Properties();
         properties.setProperty("decimal.handling.mode","double");
         properties.setProperty("time.precision.mode","connect");
+
         MySqlSource<String> mySqlSource = MySqlSource.<String>builder()
                 .hostname("cdh03")
                 .port(3306)
@@ -76,7 +77,7 @@ public class DwdBaseDb {
                 .password("root")
                 .debeziumProperties(properties)
                 .startupOptions(StartupOptions.earliest()) //全量
-//                .startupOptions(StartupOptions.latest()) //增量
+//              .startupOptions(StartupOptions.latest()) //增量
                 .deserializer(new JsonDebeziumDeserializationSchema()) // 将 SourceRecord 转换为 JSON 字符串
                 .build();
 
