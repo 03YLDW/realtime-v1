@@ -36,7 +36,13 @@ import java.util.Map;
 
 // TODO: 2025/5/5  
 
-
+//1.进行新老用户
+//2. 分流
+//- 流量域**页面浏览**事务事实表（浏览日志）
+//- 流量域**启动**事务事实表（启动日志）
+//- 流量域**动作**事务事实表（动作日志）
+//- 流量域**曝光**事务事实表（曝光日志）
+//- 流量域**错误**事务事实表（错误日志）
 public class DwdBaseLog {
 
     private static final String START = "start";
@@ -105,14 +111,14 @@ public class DwdBaseLog {
                         String lastVisitDate = lastVisitDateState.value();
                         Long ts = jsonObj.getLong("ts");
                         String curVisitDate = DateFormatUtil.tsToDate(ts);
-
+                        // 标记为1,代表是新访客
                         if ("1".equals(isNew)) {
-                            if (StringUtils.isEmpty(lastVisitDate)) {
+                            if (StringUtils.isEmpty(lastVisitDate)) {// 确实是新访客
                                 lastVisitDateState.update(curVisitDate);
                             } else {
-                                if (!lastVisitDate.equals(curVisitDate)) {
+                                if (!lastVisitDate.equals(curVisitDate)) {// 不是新访客
                                     isNew = "0";
-                                    jsonObj.getJSONObject("common").put("is_new", isNew);
+                                    jsonObj.getJSONObject("common").put("is_new", isNew);// 标记为0,不是新访客
                                 }
                             }
                         } else {

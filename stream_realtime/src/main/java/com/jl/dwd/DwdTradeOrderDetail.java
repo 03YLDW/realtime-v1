@@ -17,7 +17,9 @@ import java.time.Duration;
  * @Date 2025/4/13 19:41
  * @description: DwdTradeOrderDetail
  */
-
+//将**订单明细**，订单数据，明细活动数据，明细优惠券数据进行关联
+//订单明细表和订单表进行  inner join进行关联 为了确保每个明细订单必须有相关的有效的订单
+//而活动表和优惠券表进行left  join，因为订单可以没有促销活动或优惠券
 public class DwdTradeOrderDetail {
     public static void main(String[] args) throws Exception {
 

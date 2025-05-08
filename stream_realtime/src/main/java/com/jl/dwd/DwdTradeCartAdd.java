@@ -15,7 +15,11 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
  * @Date 2025/4/11 20:49
  * @description: DwdTradeCartAdd
  */
-
+//商品加购表
+//op='c' 判断操作类型为     新增商品
+//CAST((CAST(after['sku_num'] AS INT) - CAST(`before`['sku_num'] AS INT)进行计算出 本次新增的商品数
+//
+//最终最终写入kfk
 public class DwdTradeCartAdd {
     public static void main(String[] args) throws Exception {
         //流处理

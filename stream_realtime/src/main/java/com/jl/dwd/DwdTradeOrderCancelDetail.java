@@ -17,7 +17,8 @@ import java.time.Duration;
  * @Date 2025/4/13 18:53
  * @description: DwdTradeOrderCancelDetail
  */
-
+//将 **下单事实表**（订单明细）与 **取消订单表**（取消动作记录）关联
+//补全被取消订单的完整信息
 public class DwdTradeOrderCancelDetail {
     public static void main(String[] args) throws Exception {
 

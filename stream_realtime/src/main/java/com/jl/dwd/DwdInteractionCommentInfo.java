@@ -14,7 +14,12 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
  * @Date 2025/4/11 15:50
  * @description: DwdInteractionCommentInfo
  */
-
+//评论表关联字典表
+//读取topic_db主题数据，过滤出评论表comment_info
+//读取维度层中的字典表
+//将评论表与维度层的字典表进行关联 (此处运用了  lookup join)  为什么用lookup join呢？为了每次评论表在进行与字典表关联的时候，可以保证每次关联到的字典表的数据是最新的，因为维度字典表会更新，lookup join起到了 实时关联的作用。
+//这里 proc_time AS PROCTIME() 是实时标注品论表被处理的当前时间
+//`FOR SYSTEM_TIME AS OF c.proc_time 将评论表的处理时间和字典表的时间关联。
 public class DwdInteractionCommentInfo {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -25,11 +30,11 @@ public class DwdInteractionCommentInfo {
 
         // 从kafka的topic_db主题中读取数据 创建动态表       ---kafka连接器
         tableEnv.executeSql("create table topic_db(\n" +
-                "    `after` map<string,string>,\n" +
-                "    `source` map<string,string>,\n" +
-                "    `op` string,\n" +
+                "    `after` map<string,string>,\n" +    //存储变更后的数据
+                "    `source` map<string,string>,\n" +  //源表信息
+                "    `op` string,\n" +                //识操作类型（插入/更新/删除）
                 "    `ts_ms` BIGINT,\n" +
-                "    proc_time as proctime()\n" +
+                "    proc_time as proctime()\n" +   //定义处理时间属性，用于后续 Lookup Join
                 ")WITH (\n" +
                 "  'connector' = 'kafka',\n" +
                 "  'topic' = 'topic_db',\n" +

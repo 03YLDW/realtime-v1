@@ -63,9 +63,9 @@ public class DwdTradeRefundPaySucDetail {
                         " and `after`['refund_status'] is not null " +
                         " and `after`['refund_status']='1602'");
         tableEnv.createTemporaryView("refund_payment", refundPayment);
-//        refundPayment.execute().print();
+        //refundPayment.execute().print();
 
-        // 4. 过滤退单表中的退单成功的数据
+        //4.过滤退单表中的退单成功的数据
         Table orderRefundInfo = tableEnv.sqlQuery(
                 "select " +
                         " after['order_id'] order_id," +
