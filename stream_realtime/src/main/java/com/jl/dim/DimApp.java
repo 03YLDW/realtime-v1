@@ -34,7 +34,9 @@ import org.apache.hadoop.hbase.client.Connection;
  * @Date 2025/4/11 8:39
  * @description: BaseApp
  */
-
+//	1.根据维度配置表规则自动创建/删除 HBase 维度表。
+//	2.- **广播状态设计**：将维度配置表（`table_process_dim`）广播至所有 TaskManager。
+//- **动态路由逻辑**：在 `TableProcessFunction` 中，通过 `source_table` 匹配配置，决定写入哪个 HBase 表。
 public class DimApp {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -58,6 +60,7 @@ public class DimApp {
                         String db = jsonObj.getJSONObject("source").getString("db");
                         String type = jsonObj.getString("op");
                         String data = jsonObj.getString("after");
+//                        限定数据库 realtime_v1，操作类型为增删改（c/u/d/r）。
 
                         if ("realtime_v1".equals(db)
                                 && ("c".equals(type)
@@ -65,6 +68,7 @@ public class DimApp {
                                 || "d".equals(type)
                                 || "r".equals(type))
                                 && data != null
+                                // 过滤空数据（data.length()  > 2），避免无效记录。
                                 && data.length() > 2
                         ) {
                             out.collect(jsonObj);
@@ -137,6 +141,8 @@ public class DimApp {
 //        tpDS.print();
 
         MapStateDescriptor<String, TableProcessDim> mapStateDescriptor =
+
+                                                                        //主流        配置流、
                 new MapStateDescriptor<>("mapStateDescriptor",String.class, TableProcessDim.class);
         BroadcastStream<TableProcessDim> broadcastDS = tpDS.broadcast(mapStateDescriptor);
 
