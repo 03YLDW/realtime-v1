@@ -61,7 +61,7 @@ public class DwdTradeRefundPaySucDetail {
                         " where source['table']='refund_payment' " +
                         " and `op`='r' " +
                         " and `after`['refund_status'] is not null " +
-                        " and `after`['refund_status']='1602'");
+                        " and `after`['refund_status']='1602'");//支付系统确认退款到账成功。
         tableEnv.createTemporaryView("refund_payment", refundPayment);
         //refundPayment.execute().print();
 
@@ -75,7 +75,7 @@ public class DwdTradeRefundPaySucDetail {
                         " where source['table']='order_refund_info' " +
                         " and `op`='r' " +
                         " and `after`['refund_status'] is not null " +
-                        " and `after`['refund_status']='0705'");
+                        " and `after`['refund_status']='0705'");//业务系统审核通过退单申请
         tableEnv.createTemporaryView("order_refund_info", orderRefundInfo);
 //        orderRefundInfo.execute().print();
 
@@ -89,7 +89,7 @@ public class DwdTradeRefundPaySucDetail {
                         "where source['table']='order_info' " +
                         "and `op`='r' " +
                         "and `after`['order_status'] is not null " +
-                        "and `after`['order_status']='1006'");
+                        "and `after`['order_status']='1006'");//订单最终状态标记为退款完成。 7
         tableEnv.createTemporaryView("order_info", orderInfo);
 //        orderInfo.execute().print();
 
@@ -132,7 +132,7 @@ public class DwdTradeRefundPaySucDetail {
                 ")" + SQLUtil.getUpsertKafkaDDL(Constant.TOPIC_DWD_TRADE_REFUND_PAYMENT_SUCCESS));
         result.executeInsert(Constant.TOPIC_DWD_TRADE_REFUND_PAYMENT_SUCCESS);
         
-        env.execute("DwdTradeRefundPaySucDetail");
+//        env.execute("DwdTradeRefundPaySucDetail");
 
 
     }

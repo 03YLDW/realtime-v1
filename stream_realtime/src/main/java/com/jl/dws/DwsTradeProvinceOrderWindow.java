@@ -163,7 +163,7 @@ public class DwsTradeProvinceOrderWindow {
         );
 
 //        reduceDS.print();
-
+//异步关联省份名称
         SingleOutputStreamOperator<TradeProvinceOrderBean> withProvinceDS = AsyncDataStream.unorderedWait(
                 reduceDS,
                 new DimAsyncFunction<TradeProvinceOrderBean>() {

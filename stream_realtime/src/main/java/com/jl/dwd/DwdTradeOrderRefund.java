@@ -33,7 +33,7 @@ public class DwdTradeOrderRefund {
                 "    `source` map<string,string>,\n" +
                 "    `op` string,\n" +
                 "    `ts_ms` BIGINT,\n" +
-                "    proc_time as proctime()\n" +
+                "     proc_time as proctime()\n" +
                 ")WITH (\n" +
                 "  'connector' = 'kafka',\n" +
                 "  'topic' = 'topic_db',\n" +
@@ -82,7 +82,7 @@ public class DwdTradeOrderRefund {
         tableEnv.createTemporaryView("order_refund_info", orderRefundInfo);
 //        orderRefundInfo.execute().print();
 
-        // 3. 过滤订单表中的退单数据: order_info  update
+        // 3. 过滤订单表中的退单数据:  order_info  update
         Table orderInfo = tableEnv.sqlQuery(
                 "select " +
                         "after['id'] id," +

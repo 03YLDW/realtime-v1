@@ -76,10 +76,12 @@ public class DwsTrafficVcChArIsNewPageViewWindow {
 
                     @Override
                     public TrafficVcChArIsNewPageViewBean map(JSONObject jsonObj) throws Exception {
+
                         JSONObject commonJsonObj = jsonObj.getJSONObject("common");
                         JSONObject pageJsonObj = jsonObj.getJSONObject("page");
 
                         //从状态中获取当前设置上次访问日期
+                        // 状态逻辑：若当天首次访问，UV数+1，并更新状态日期
                         String lastVisitDate = lastVisitDateState.value();
                         //获取当前访问日期
                         Long ts = jsonObj.getLong("ts");
@@ -91,17 +93,17 @@ public class DwsTrafficVcChArIsNewPageViewWindow {
                         }
 
                         String lastPageId = pageJsonObj.getString("last_page_id");
-
+//                        若 last_page_id 为空，则视为新会话（svCt=1）
                         Long svCt = StringUtils.isEmpty(lastPageId) ? 1L : 0L ;
 
                         return new TrafficVcChArIsNewPageViewBean(
                                 "",
                                 "",
                                 "",
-                                commonJsonObj.getString("vc"),
-                                commonJsonObj.getString("ch"),
-                                commonJsonObj.getString("ar"),
-                                commonJsonObj.getString("is_new"),
+                                commonJsonObj.getString("vc"),//版本渠道
+                                commonJsonObj.getString("ch"),//渠道
+                                commonJsonObj.getString("ar"),//地区
+                                commonJsonObj.getString("is_new"),//新老用户
                                 uvCt,
                                 svCt,
                                 1L,
@@ -128,7 +130,7 @@ public class DwsTrafficVcChArIsNewPageViewWindow {
         );
 
 //        withWatermarkDS.print();
-
+// 按维度分组（vc, ch, ar, is_new）
         KeyedStream<TrafficVcChArIsNewPageViewBean, Tuple4<String, String, String, String>> dimKeyedDS = withWatermarkDS.keyBy(
                 new KeySelector<TrafficVcChArIsNewPageViewBean, Tuple4<String, String, String, String>>() {
                     @Override
@@ -140,10 +142,10 @@ public class DwsTrafficVcChArIsNewPageViewWindow {
                     }
                 }
         );
-
+// 定义10秒滚动事件时间窗口
         WindowedStream<TrafficVcChArIsNewPageViewBean, Tuple4<String, String, String, String>, TimeWindow> windowDS
                 = dimKeyedDS.window(TumblingEventTimeWindows.of(org.apache.flink.streaming.api.windowing.time.Time.seconds(10)));
-
+// 窗口内聚合（PV/UV/SV/时长累加）
         SingleOutputStreamOperator<TrafficVcChArIsNewPageViewBean> reduceDS = windowDS.reduce(
                 new ReduceFunction<TrafficVcChArIsNewPageViewBean>() {
                     @Override
@@ -153,7 +155,7 @@ public class DwsTrafficVcChArIsNewPageViewWindow {
                         value1.setSvCt(value1.getSvCt() + value2.getSvCt());
                         value1.setDurSum(value1.getDurSum() + value2.getDurSum());
                         return value1;
-                    }
+                     }
                 },
                 new WindowFunction<TrafficVcChArIsNewPageViewBean, TrafficVcChArIsNewPageViewBean, Tuple4<String, String, String, String>, TimeWindow>() {
                     @Override

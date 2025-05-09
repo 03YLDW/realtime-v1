@@ -10,78 +10,85 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 /**
- * @Package com.jl.DwsTrafficSourceKeywordPageViewWindow
- * @Author jia.le
- * @Date 2025/4/18 18:53
- * @description:
- */
+* @Package com.jl.DwsTrafficSourceKeywordPageViewWindow
+* @Author jia.le
+* @Date 2025/4/18 18:53
+* @description:
+*/
 
 public class DwsTrafficSourceKeywordPageViewWindow {
-    public static void main(String[] args) throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+public static void main(String[] args) throws Exception {
+    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        env.setParallelism(1);
+    env.setParallelism(1);
 
-        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+    StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
-        env.enableCheckpointing(5000L);
+    env.enableCheckpointing(5000L);
+//通过自定义函数 ik_analyze对搜索内容拆分成独立关键词
+    tableEnv.createTemporarySystemFunction("ik_analyze", KeywordUDTF.class);
 
-        tableEnv.createTemporarySystemFunction("ik_analyze", KeywordUDTF.class);
+    // 创建一个名为page_log的表，用于存储页面日志数据
+    // 该表包含以下字段：
+    // - common: 一个映射，存储通用信息，如用户代理、IP地址等
+    // - page: 一个映射，存储页面特定信息，如页面ID、页面名称等
+    // - ts: 时间戳字段，从源数据的'timestamp'元数据中提取
+    //    并设置水位线，以处理数据的乱序问题
+tableEnv.executeSql("create table page_log(\n" +
+    "     common map<string,string>,\n" +
+    "     page map<string,string>,\n" +
+    "     ts TIMESTAMP(3) METADATA FROM 'timestamp', \n" +
+    "     WATERMARK FOR ts AS ts - INTERVAL '3' SECOND \n" +  //设置水位线  解决乱序
+    ")" + SQLUtil.getKafkaDDL(Constant.TOPIC_DWD_TRAFFIC_PAGE,"dws_traffic_source_keyword_page_view_window"));
+//tableEnv.executeSql("select * from page_log").print();  // 查询page_log表中的所有数据并打印
 
-        tableEnv.executeSql("create table page_log(\n" +
-                "     common map<string,string>,\n" +
-                "     page map<string,string>,\n" +
-                "     ts TIMESTAMP(3) METADATA FROM 'timestamp', \n" +
-                "     WATERMARK FOR ts AS ts - INTERVAL '3' SECOND \n" +
-                ")" + SQLUtil.getKafkaDDL(Constant.TOPIC_DWD_TRAFFIC_PAGE,"dws_traffic_source_keyword_page_view_window"));
-//        tableEnv.executeSql("select * from page_log").print();
 
-        Table searchTable = tableEnv.sqlQuery("select \n" +
-                "   page['item']  fullword,\n" +
-                "   ts \n" +
-                " from page_log\n" +
-                " where page['last_page_id'] = 'search' and page['item_type'] ='keyword' and page['item'] is not null");
-        tableEnv.createTemporaryView("search_table",searchTable);
+    Table searchTable = tableEnv.sqlQuery("select \n" +
+            "   page['item']  fullword,\n" +
+            "   ts \n" +
+            " from page_log\n" +
+            " where page ['last_page_id'] = 'search' and page ['item_type'] ='keyword' and page['item'] is not null");
+    tableEnv.createTemporaryView("search_table",searchTable);
 //        searchTable.execute().print();
 
 
-        Table splitTable = tableEnv.sqlQuery("SELECT keyword,ts FROM search_table,\n" +
-                "LATERAL TABLE(ik_analyze(fullword)) t(keyword)");
-        tableEnv.createTemporaryView("split_table",splitTable);
+    Table splitTable = tableEnv.sqlQuery("SELECT keyword,ts FROM search_table,\n" +
+            "LATERAL TABLE(ik_analyze(fullword)) t(keyword)");
+    tableEnv.createTemporaryView("split_table",splitTable);
 //        tableEnv.executeSql("select * from split_table").print();
 
-        Table resTable = tableEnv.sqlQuery("SELECT \n" +
-                "  date_format(window_start, 'yyyy-MM-dd HH:mm:ss') stt,\n" +
-                "  date_format(window_end, 'yyyy-MM-dd HH:mm:ss') edt,\n" +
-                "  date_format(window_start, 'yyyy-MM-dd') cur_date,\n" +
-                "  keyword,\n" +
-                "  count(*) keyword_count\n" +
-                "  FROM TABLE(\n" +
-                "  TUMBLE(TABLE split_table, DESCRIPTOR(ts), INTERVAL '10' second))\n" +
-                "  GROUP BY window_start, window_end, keyword");
+    Table resTable = tableEnv.sqlQuery("SELECT \n" +
+            "  date_format(window_start, 'yyyy-MM-dd HH:mm:ss') stt,\n" +
+            "  date_format(window_end, 'yyyy-MM-dd HH:mm:ss') edt,\n" +
+            "  date_format(window_start, 'yyyy-MM-dd') cur_date,\n" +
+            "  keyword,\n" +
+            "  count(*) keyword_count\n" +
+            "  FROM TABLE(\n" +
+            "  TUMBLE(TABLE split_table, DESCRIPTOR(ts), INTERVAL '10' second))\n" +
+            "  GROUP BY window_start, window_end, keyword");
 //        resTable.execute().print();
 
-        tableEnv.executeSql("create table dws_traffic_source_keyword_page_view_window(" +
-                "  stt string, " +  // 2023-07-11 14:14:14
-                "  edt string, " +
-                "  cur_date string, " +
-                "  keyword string, " +
-                "  keyword_count bigint " +
-                ")with(" +
-                " 'connector' = 'doris'," +
-                " 'fenodes' = '" + Constant.DORIS_FE_NODES + "'," +
-                "  'table.identifier' = '" + Constant.DORIS_DATABASE + ".dws_traffic_source_keyword_page_view_window'," +
-                "  'username' = 'root'," +
-                "  'password' = 'root', " +
-                "  'sink.properties.format' = 'json', " +
-                "  'sink.buffer-count' = '4', " +
-                "  'sink.buffer-size' = '4086'," +
-                "  'sink.enable-2pc' = 'false', " + // 测试阶段可以关闭两阶段提交,方便测试
-                "  'sink.properties.read_json_by_line' = 'true' " +
-                ")");
-        resTable.executeInsert("dws_traffic_source_keyword_page_view_window");
+    tableEnv.executeSql("create table dws_traffic_source_keyword_page_view_window(" +
+            "  stt string, " +  // 2023-07-11 14:14:14
+            "  edt string, " +
+            "  cur_date string, " +
+            "  keyword string, " +
+            "  keyword_count bigint " +
+            ")with(" +
+            " 'connector' = 'doris'," +
+            " 'fenodes' = '" + Constant.DORIS_FE_NODES + "'," +
+            "  'table.identifier' = '" + Constant.DORIS_DATABASE + ".dws_traffic_source_keyword_page_view_window'," +
+            "  'username' = 'root'," +
+            "  'password' = 'root', " +
+            "  'sink.properties.format' = 'json', " +
+            "  'sink.buffer-count' = '4', " +
+            "  'sink.buffer-size' = '4086'," +
+            "  'sink.enable-2pc' = 'false', " + // 测试阶段可以关闭两阶段提交,方便测试
+            "  'sink.properties.read_json_by_line' = 'true' " +
+            ")");
+    resTable.executeInsert("dws_traffic_source_keyword_page_view_window");
 
 
-        env.execute("DwsTrafficSourceKeywordPageViewWindow");
-    }
+    env.execute("DwsTrafficSourceKeywordPageViewWindow");
+}
 }

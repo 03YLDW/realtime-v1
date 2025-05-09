@@ -81,8 +81,8 @@ public class DwsTrafficHomeDetailPageViewWindow {
         //TODO 5.使用flink的状态编程  判断是否为首页以及详情页的独立访客   并将结果封装为统计的实体类对象
         SingleOutputStreamOperator<TrafficHomeDetailPageViewBean> beanDS = keyedDS.process(
                 new KeyedProcessFunction<String, JSONObject, TrafficHomeDetailPageViewBean>() {
-                    private ValueState<String> homeLastVisitDateState;
-                    private ValueState<String> detailLastVisitDateState;
+                    private ValueState<String> homeLastVisitDateState;//记录用户最近一次访问首页的日期
+                    private ValueState<String> detailLastVisitDateState;//记录用户最近一次访问详情页的日期
 
                     @Override
                     public void open(Configuration parameters) {

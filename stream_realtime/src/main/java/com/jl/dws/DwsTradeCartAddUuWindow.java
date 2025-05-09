@@ -37,17 +37,18 @@ import org.apache.flink.util.Collector;
  * @Date 2025/4/21 14:31
  * @description: DwsTradeCartAddUuWindow
  */
-
+//每日加购独立用户数   实时统计加购UV，判断秒杀、满减等活动是否吸引新用户。
+//    每个用户每天可能多次加购商品，但统计 每日独立用户数（UV） 时，需确保每个用户当天只被计数一次。
 public class DwsTradeCartAddUuWindow {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.setParallelism(1);
-
+//        精准一次语义         保障数据在故障恢复后不重复、不丢失
         env.enableCheckpointing(5000L, CheckpointingMode.EXACTLY_ONCE);
 
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3,3000L));
-
+//        从 dwd_trade_cart_add 主题读取用户加购明细数据
         KafkaSource<String> kafkaSource = FlinkSourceUtil.getKafkaSource("dwd_trade_cart_add", "dws_trade_cart_add_uu_window");
 
         DataStreamSource<String> kafkaStrDS
@@ -71,13 +72,16 @@ public class DwsTradeCartAddUuWindow {
         KeyedStream<JSONObject, String> keyedDS = withWatermarkDS.keyBy(jsonObj -> jsonObj.getString("user_id"));
 
         SingleOutputStreamOperator<JSONObject> cartUUDS = keyedDS.process(
+//                KeyedProcessFunction	按用户分组处理，确保状态隔离
                 new KeyedProcessFunction<String, JSONObject, JSONObject>() {
+//                    ValueState 状态	存储每个用户最后一次加购日期
                     private ValueState<String> lastCartDateState;
 
                     @Override
                     public void open(Configuration parameters) {
                         ValueStateDescriptor<String> valueStateDescriptor
                                 = new ValueStateDescriptor<>("lastCartDateState", String.class);
+                        //TTL（1天过期）	自动清理超过1天的状态数据  （每日）
                         valueStateDescriptor.enableTimeToLive(StateTtlConfig.newBuilder(Time.days(1)).build());
                         lastCartDateState = getRuntimeContext().getState(valueStateDescriptor);
                     }
@@ -99,32 +103,34 @@ public class DwsTradeCartAddUuWindow {
 
         AllWindowedStream<JSONObject, TimeWindow> windowDS = cartUUDS
                 .windowAll(TumblingEventTimeWindows.of(org.apache.flink.streaming.api.windowing.time.Time.seconds(2)));
-
+//                                  通过 Flink 窗口聚合统计 每日加购独立用户数（UV）
         SingleOutputStreamOperator<CartAddUuBean> aggregateDS = windowDS.aggregate(
                 new AggregateFunction<JSONObject, Long, Long>() {
                     @Override
                     public Long createAccumulator() {
-                        return 0L;
+                        return 0L;// 初始化计数器为0
                     }
 
                     @Override
                     public Long add(JSONObject value, Long accumulator) {
-                        return ++accumulator;
+                        return ++accumulator;// 每收到一条数据，计数器+1
                     }
 
                     @Override
                     public Long getResult(Long accumulator) {
-                        return accumulator;
+                        return accumulator; // 返回最终计数结果
                     }
 
                     @Override
                     public Long merge(Long a, Long b) {
-                        return null;
+                        return null;// 窗口合并逻辑（示例未实现）
                     }
                 },
                 new AllWindowFunction<Long, CartAddUuBean, TimeWindow>() {
                     @Override
                     public void apply(TimeWindow window, Iterable<Long> values, Collector<CartAddUuBean> out) {
+
+//                        时间信息整合：将窗口起止时间、统计日期与UV值绑定，形成完整统计记录。
                         Long cartUUCt = values.iterator().next();
                         long startTs = window.getStart() / 1000;
                         long endTs = window.getEnd() / 1000;
@@ -140,7 +146,7 @@ public class DwsTradeCartAddUuWindow {
                     }
                 }
         );
-
+//JSON格式转换（6
         SingleOutputStreamOperator<String> operator = aggregateDS
                 .map(new BeanToJsonStrMapFunction<>());
 

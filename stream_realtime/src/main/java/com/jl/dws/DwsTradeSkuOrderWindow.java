@@ -47,7 +47,7 @@ public class DwsTradeSkuOrderWindow {
 
         env.enableCheckpointing(5000L, CheckpointingMode.EXACTLY_ONCE);
 
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3,3000L));
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3,3000L));// 固定延迟重启策略
 
         KafkaSource<String> kafkaSource = FlinkSourceUtil.getKafkaSource("dwd_trade_order_detail", "dws_trade_sku_order_window");
 
@@ -58,7 +58,7 @@ public class DwsTradeSkuOrderWindow {
                 new ProcessFunction<String, JSONObject>() {
                     @Override
                     public void processElement(String value, ProcessFunction<String, JSONObject>.Context ctx, Collector<JSONObject> out) {
-                        if (value != null) {
+                        if (value != null) { // 过滤空值并解析JSON
                             JSONObject jsonObj = JSON.parseObject(value);
                             out.collect(jsonObj);
                         }
@@ -72,10 +72,11 @@ public class DwsTradeSkuOrderWindow {
 
         SingleOutputStreamOperator<JSONObject> distinctDS = orderDetailIdKeyedDS.process(
                 new KeyedProcessFunction<String, JSONObject, JSONObject>() {
-                    private ValueState<JSONObject> lastJsonObjState;
+                    private ValueState<JSONObject> lastJsonObjState;// 状态存储最新数据
 
                     @Override
                     public void open(Configuration parameters) {
+                        // 初始化状态描述符
                         ValueStateDescriptor<JSONObject> valueStateDescriptor
                                 = new ValueStateDescriptor<>("lastJsonObjState", JSONObject.class);
                         lastJsonObjState = getRuntimeContext().getState(valueStateDescriptor);
@@ -84,13 +85,13 @@ public class DwsTradeSkuOrderWindow {
                     @Override
                     public void processElement(JSONObject jsonObj, KeyedProcessFunction<String, JSONObject, JSONObject>.Context ctx, Collector<JSONObject> out) throws Exception {
                         JSONObject lastJsonObj = lastJsonObjState.value();
-                        if (lastJsonObj == null) {
+                        if (lastJsonObj == null) {// 首次接收该订单
                             lastJsonObjState.update(jsonObj);
                             long currentProcessingTime = ctx.timerService().currentProcessingTime();
                             ctx.timerService().registerProcessingTimeTimer(currentProcessingTime + 5000L);
-                        } else {
-                            String lastTs = lastJsonObj.getString("聚合时间戳");
-                            String curTs = jsonObj.getString("聚合时间戳");
+                        } else {// 保留时间戳更大的记录
+                            String lastTs = lastJsonObj.getString("ts_ms");
+                            String curTs = jsonObj.getString("ts_ms");
                             if (curTs.compareTo(lastTs) >= 0) {
                                 lastJsonObjState.update(jsonObj);
                             }
@@ -125,6 +126,8 @@ public class DwsTradeSkuOrderWindow {
 
 //        withWatermarkDS.print();
 
+
+//        将JSON对象转换为业务实体类TradeSkuOrderBean
         SingleOutputStreamOperator<TradeSkuOrderBean> beanDS = withWatermarkDS.map(
                 new MapFunction<JSONObject, TradeSkuOrderBean>() {
                     @Override
@@ -163,7 +166,7 @@ public class DwsTradeSkuOrderWindow {
         WindowedStream<TradeSkuOrderBean, String, TimeWindow> windowDS = skuIdKeyedDS
                 .window(TumblingProcessingTimeWindows
                         .of(org.apache.flink.streaming.api.windowing.time.Time.seconds(10)));
-
+// 10秒滚动处理时间窗口
         //TODO 8.聚合
         SingleOutputStreamOperator<TradeSkuOrderBean> reduceDS = windowDS.reduce(
                 new ReduceFunction<TradeSkuOrderBean>() {
@@ -192,7 +195,7 @@ public class DwsTradeSkuOrderWindow {
                 }
         );
 //        reduceDS.print();
-
+// 关联SKU维度（异步IO）
         SingleOutputStreamOperator<TradeSkuOrderBean> withSkuInfoDS = AsyncDataStream.unorderedWait(
                 reduceDS,
                 new DimAsyncFunction<TradeSkuOrderBean>() {
@@ -217,6 +220,7 @@ public class DwsTradeSkuOrderWindow {
                 60,
                 TimeUnit.SECONDS
         );
+// 后续关联SPU、品牌、三级分类、二级分类、一级分类（代码结构类似）
 
 //        withSkuInfoDS.print();
 
