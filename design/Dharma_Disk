@@ -1,0 +1,106 @@
+1. ODS层（原始数据层）
+存储原始数据，需包含所有必要字段支撑后续处理。
+
+表名	字段名	类型	说明
+ods_user_behavior_log	user_id	BIGINT	用户唯一标识
+event_time	TIMESTAMP	行为发生时间
+event_type	STRING	行为类型（浏览、搜索、收藏、加购、购买等）
+item_id	BIGINT	商品ID
+category_id	STRING	商品一级类目ID
+brand_id	STRING	品牌ID
+search_keywords	STRING	搜索关键词（分词后存储）
+device_type	STRING	设备类型（iOS/Android/PC）
+os_version	STRING	操作系统版本
+ods_user_profile	user_id	BIGINT	用户唯一标识
+birth_year	INT	用户出生年份（可能为空）
+gender	STRING	用户填写的性别（可能为空）
+height	DECIMAL	用户填写的身高（单位：cm，可能含异常值）
+weight	DECIMAL	用户填写的体重（单位：kg，可能含异常值）
+birthday	DATE	用户生日（用于星座计算）
+ods_order_info	order_id	BIGINT	订单ID
+user_id	BIGINT	用户ID
+item_id	BIGINT	商品ID
+category_id	STRING	商品一级类目
+order_time	TIMESTAMP	下单时间
+price	DECIMAL	商品价格（用于价格敏感度计算）
+ods_device_sync	user_id	BIGINT	用户ID
+device_type	STRING	设备类型（如体脂秤、智能手表）
+sync_time	TIMESTAMP	数据同步时间
+height	DECIMAL	设备同步的身高数据
+weight	DECIMAL	设备同步的体重数据
+2. DWD层（明细数据层）
+清洗和标准化数据，关联多维度信息。
+
+表名	字段名	类型	说明
+dwd_user_behavior	user_id	BIGINT	用户ID
+event_date	DATE	行为日期（分区字段）
+event_type	STRING	行为类型（标准化后的值）
+category_id	STRING	商品类目ID（关联类目权重表）
+brand_id	STRING	品牌ID（关联品牌偏好表）
+search_keywords	ARRAY	分词后的搜索词列表
+device_info	MAP<STRING,STRING>	设备信息（类型、版本等）
+dwd_user_profile_clean	user_id	BIGINT	用户ID
+birth_year	INT	清洗后的出生年份（过滤异常值）
+height	DECIMAL	标准化后的身高（单位：cm，异常值标记为NULL）
+weight	DECIMAL	标准化后的体重（单位：kg，异常值标记为NULL）
+birthday	DATE	有效生日（用于星座计算）
+3. DWS层（汇总层）
+聚合用户行为特征，生成中间指标。
+
+表名	字段名	类型	说明
+dws_user_behavior_agg	user_id	BIGINT	用户ID
+category_preference	MAP<STRING,DOUBLE>	类目偏好得分（类目ID:得分）
+brand_preference	MAP<STRING,DOUBLE>	品牌偏好得分
+price_sensitivity	DOUBLE	价格敏感度得分（基于订单价格分布）
+time_slot_distribution	MAP<STRING,INT>	时间段行为分布（凌晨、早晨等7个时段）
+search_keyword_tags	ARRAY	搜索词标签（如“潮流”、“折扣”等）
+social_interaction	MAP<STRING,INT>	社交互动行为统计（直播参与、评论数等）
+4. ADS层（应用层）
+存储最终用户画像标签结果。
+
+表名	字段名	类型	说明
+ads_user_profile_tag	user_id	BIGINT	用户ID
+age_tag	STRING	年龄标签（18-24岁等）
+gender_tag	STRING	性别标签（女性/男性/家庭用户）
+height	DECIMAL	最终身高（冲突解决后的值）
+weight	DECIMAL	最终体重（冲突解决后的值）
+constellation	STRING	星座标签
+update_time	TIMESTAMP	标签更新时间
+二、不分层架构表设计
+将所有数据整合到少数宽表中，适合小规模快速实现。
+
+表名	字段名	类型	说明
+user_behavior_wide	user_id	BIGINT	用户ID
+event_type	STRING	行为类型（浏览、购买等）
+category_id	STRING	商品类目
+search_keywords	STRING	搜索词
+device_type	STRING	设备类型
+birth_year	INT	出生年份
+height	DECIMAL	用户身高
+weight	DECIMAL	用户体重
+birthday	DATE	生日信息
+user_tag_result	user_id	BIGINT	用户ID
+age_tag	STRING	年龄标签
+gender_tag	STRING	性别标签
+height	DECIMAL	最终身高
+weight	DECIMAL	最终体重
+constellation	STRING	星座
+三、关键关联表补充
+1. 类目权重表（支撑年龄标签计算）
+表名	字段名	类型	说明
+category_weight	category_id	STRING	类目ID
+age_18_24	DOUBLE	18-24岁偏好系数
+age_25_29	DOUBLE	25-29岁偏好系数
+...（其他年龄段）	DOUBLE	各年龄段系数
+2. 时间分段配置表
+表名	字段名	类型	说明
+time_slot_config	slot_name	STRING	时间段名称（如“凌晨”）
+start_time	STRING	开始时间（格式：HH:mm）
+end_time	STRING	结束时间
+3. 星座日期对照表
+表名	字段名	类型	说明
+constellation	name	STRING	星座名称
+start_month	INT	开始月份
+start_day	INT	开始日期
+end_month	INT	结束月份
+end_day	INT	结束日期
